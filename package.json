@@ -1,0 +1,90 @@
+{
+  "name": "uri-grep",
+  "displayName": "URI Grep",
+  "description": "This extension allows you to trigger VS Code's 'Search in Files' feature (Ctrl+Shift+F) using a custom URI scheme. This is useful for launching searches from external scripts or tools like batch files.",
+  "version": "0.0.2",
+  "publisher": "mfujita47",
+  "license": "MIT",
+  "icon": "uri-grep.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mfujita47/VSCode-URI-Grep.git"
+  },
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onUri"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "uriHandler": [
+      {
+        "id": "uri-grep-handler",
+        "label": "URI Grep Handler"
+      }
+    ],
+    "configuration": {
+      "title": "URI Grep",
+      "properties": {
+        "urigrep.defaultFilesToInclude": {
+          "type": "string",
+          "default": "",
+          "description": "Default value for 'filesToInclude' when not specified in the URI."
+        },
+        "urigrep.defaultFilesToExclude": {
+          "type": "string",
+          "default": "",
+          "description": "Default value for 'filesToExclude' when not specified in the URI."
+        },
+        "urigrep.defaultIsRegex": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default value for 'isRegex' when not specified in the URI."
+        },
+        "urigrep.defaultIsCaseSensitive": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default value for 'isCaseSensitive' when not specified in the URI."
+        },
+        "urigrep.defaultMatchWholeWord": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default value for 'matchWholeWord' when not specified in the URI."
+        },
+        "urigrep.defaultUseExcludeSettingsAndIgnoreFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Default value for 'useExcludeSettingsAndIgnoreFiles' when not specified in the URI."
+        },
+        "urigrep.defaultContextLines": {
+          "type": "number",
+          "default": 1,
+          "description": "Default value for 'contextLines' (number of surrounding lines to show in search results) when not specified in the URI."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.99.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
