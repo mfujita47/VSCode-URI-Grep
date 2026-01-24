@@ -2,10 +2,10 @@
   "name": "uri-grep",
   "displayName": "URI Grep",
   "description": "This extension allows you to trigger VS Code's 'Search in Files' feature (Ctrl+Shift+F) using a custom URI scheme. This is useful for launching searches from external scripts or tools like batch files.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "mfujita47",
   "license": "MIT",
-  "icon": "uri-grep.png",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/mfujita47/VSCode-URI-Grep.git"
@@ -30,6 +30,11 @@
     "configuration": {
       "title": "URI Grep",
       "properties": {
+        "urigrep.defaultQuery": {
+          "type": "string",
+          "default": "",
+          "description": "Default value for 'query' when not specified in the URI."
+        },
         "urigrep.defaultFilesToInclude": {
           "type": "string",
           "default": "",

@@ -2,6 +2,21 @@
 
 All notable changes to the "uri-grep" extension will be documented in this file.
 
+## [0.0.3] - 2026-01-25
+
+### Fixed
+
+- Fixed a bug where the `query` parameter would incorrectly fallback to `filesToInclude` settings if not provided.
+
+### Added
+
+- Renewed an extension icon.
+
+### Changed
+
+- Optimized internal code: implemented a robust parameter handling system and centralized configuration logic.
+- Improved logging: Logs are now output to a dedicated "URI Grep" Output channel instead of the developer console.
+
 ## [0.0.2] - 2025-04-29
 
 ### Changed

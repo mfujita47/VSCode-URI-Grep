@@ -1,0 +1,99 @@
+import * as vscode from "vscode";
+
+// 設定キーを定数として定義
+const CONFIG_KEYS = {
+  DEFAULT_QUERY: "urigrep.defaultQuery",
+  DEFAULT_FILES_TO_INCLUDE: "urigrep.defaultFilesToInclude",
+  DEFAULT_FILES_TO_EXCLUDE: "urigrep.defaultFilesToExclude",
+  DEFAULT_IS_CASE_SENSITIVE: "urigrep.defaultIsCaseSensitive",
+  DEFAULT_MATCH_WHOLE_WORD: "urigrep.defaultMatchWholeWord",
+  DEFAULT_IS_REGEX: "urigrep.defaultIsRegex",
+} as const;
+
+// ログ出力用ユーティリティ
+function log(message: string, ...optionalParams: any[]) {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[uri-grep] ${message}`, ...optionalParams);
+  }
+}
+
+// エラーハンドリング用ユーティリティ
+function handleError(context: string, err: any) {
+  vscode.window.showErrorMessage(`Failed to ${context}: ${err}`);
+  log(`Failed to ${context}:`, err);
+}
+
+// findInFiles コマンドの型定義
+interface FindInFilesArgs {
+  query: string;
+  filesToInclude?: string;
+  filesToExclude?: string;
+  isRegex?: boolean;
+  isCaseSensitive?: boolean;
+  matchWholeWord?: boolean;
+}
+
+// パラメータ取得の汎用関数
+function getParam<T>(
+  queryParams: URLSearchParams,
+  paramName: string,
+  config: vscode.WorkspaceConfiguration,
+  configKey: string,
+  fallbackValue: T
+): T {
+  if (queryParams.has(paramName)) {
+    const value = queryParams.get(paramName);
+    if (typeof fallbackValue === "boolean") {
+      return (value === "true") as T;
+    }
+    return (value as unknown as T) ?? fallbackValue;
+  }
+  return config.get<T>(configKey, fallbackValue);
+}
+
+class UriHandler implements vscode.UriHandler {
+  public handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
+    log(`Received URI: ${uri.toString()}`);
+    const config = vscode.workspace.getConfiguration("urigrep");
+    const queryParams = new URLSearchParams(uri.query);
+
+    // パラメータ取得
+    const searchQuery = getParam(queryParams, "query", config, CONFIG_KEYS.DEFAULT_QUERY, "");
+    const filesToInclude = getParam(queryParams, "filesToInclude", config, CONFIG_KEYS.DEFAULT_FILES_TO_INCLUDE, "");
+    const filesToExclude = getParam(queryParams, "filesToExclude", config, CONFIG_KEYS.DEFAULT_FILES_TO_EXCLUDE, "");
+    const isCaseSensitive = getParam(queryParams, "isCaseSensitive", config, CONFIG_KEYS.DEFAULT_IS_CASE_SENSITIVE, false);
+    const matchWholeWord = getParam(queryParams, "matchWholeWord", config, CONFIG_KEYS.DEFAULT_MATCH_WHOLE_WORD, false);
+    const isRegex = getParam(queryParams, "isRegex", config, CONFIG_KEYS.DEFAULT_IS_REGEX, false);
+
+    const commandArgs: FindInFilesArgs = {
+      query: searchQuery,
+      filesToInclude,
+      filesToExclude,
+      isRegex,
+      isCaseSensitive,
+      matchWholeWord,
+    };
+
+    log("Executing findInFiles command with parameters:", commandArgs);
+    this.executeFindInFiles(commandArgs);
+  }
+
+  private executeFindInFiles(args: FindInFilesArgs) {
+    vscode.commands.executeCommand("workbench.action.findInFiles", args).then(
+      () => log("findInFiles command executed successfully."),
+      (err) => handleError("execute findInFiles command", err)
+    );
+  }
+}
+
+export function activate(context: vscode.ExtensionContext) {
+  console.log('Congratulations, your extension "uri-grep" is now active!');
+
+  const uriHandler = new UriHandler();
+  context.subscriptions.push(vscode.window.registerUriHandler(uriHandler));
+  console.log("URI handler registered.");
+}
+
+export function deactivate() {
+  console.log('Extension "uri-grep" is deactivated.');
+}

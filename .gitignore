@@ -42,3 +42,4 @@ logs/
 .npmrc
 .yarnrc
 yarn.lock.error
+.b*
