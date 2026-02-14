@@ -54,3 +54,6 @@ tsconfig.json.mjs
 
 # Backup files
 *.b*
+
+# Exclude sample files
+READMEsample.md
