@@ -2,7 +2,13 @@
 
 All notable changes to the "uri-grep" extension will be documented in this file.
 
-## [1.3.0] - 2026-02-14
+## [1.4.0] - 2026-02-14
+
+### Changed
+
+- Markedly improved icon visibility.
+
+## [1.3.0] - 2026-02-13
 
 ### Added
 
