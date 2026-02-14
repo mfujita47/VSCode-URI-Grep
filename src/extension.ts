@@ -1,105 +1,68 @@
 import * as vscode from "vscode";
+import { UriParser, FindInFilesArgs, IConfigProvider } from "./uriParser";
 
 // ログ出力用のチャンネル（activateで初期化）
 let outputChannel: vscode.OutputChannel | undefined;
 
 // ログ出力用ユーティリティ
-function log(message: string, ...optionalParams: any[]) {
+function log(message: string, ...optionalParams: unknown[]) {
   const time = new Date().toLocaleTimeString();
   const formattedParams = optionalParams.map(p =>
-    typeof p === 'object' ? JSON.stringify(p) : p
+    typeof p === 'object' && p !== null ? JSON.stringify(p) : String(p)
   ).join(' ');
 
   if (outputChannel) {
     outputChannel.appendLine(`[${time}] ${message} ${formattedParams}`);
   }
 
+  // 開発環境のみコンソールにも出力
   if (process.env.NODE_ENV !== "production") {
     console.log(`[uri-grep] ${message}`, ...optionalParams);
   }
 }
 
-// パラメータ定義の型
-interface ParamDef<T> {
-  name: keyof FindInFilesArgs;
-  configKey: string;
-  defaultValue: T;
-  type: "string" | "boolean" | "number";
+// Wrapper for vscode.WorkspaceConfiguration to match IConfigProvider
+class VSCodeConfigProvider implements IConfigProvider {
+    private config: vscode.WorkspaceConfiguration;
+
+    constructor(section: string) {
+        this.config = vscode.workspace.getConfiguration(section);
+    }
+
+    get<T>(key: string, defaultValue: T): T {
+        // VS Code の get は undefined を返す可能性があるため、defaultValue を確実に返すようにする
+        const value = this.config.get<T>(key);
+        return value !== undefined ? value : defaultValue;
+    }
 }
 
-// 設定キーのプレフィックス
 const CONFIG_PREFIX = "urigrep";
 
-// パラメータ定義リスト
-const PARAM_DEFINITIONS: ParamDef<any>[] = [
-  { name: "query", configKey: "defaultQuery", defaultValue: "", type: "string" },
-  { name: "filesToInclude", configKey: "defaultFilesToInclude", defaultValue: "", type: "string" },
-  { name: "filesToExclude", configKey: "defaultFilesToExclude", defaultValue: "", type: "string" },
-  { name: "isCaseSensitive", configKey: "defaultIsCaseSensitive", defaultValue: false, type: "boolean" },
-  { name: "matchWholeWord", configKey: "defaultMatchWholeWord", defaultValue: false, type: "boolean" },
-  { name: "isRegex", configKey: "defaultIsRegex", defaultValue: false, type: "boolean" },
-];
-
-interface FindInFilesArgs {
-  query?: string;
-  filesToInclude?: string;
-  filesToExclude?: string;
-  isRegex?: boolean;
-  isCaseSensitive?: boolean;
-  matchWholeWord?: boolean;
-  triggerSearch?: boolean;
-}
-
 class UriHandler implements vscode.UriHandler {
+  private parser: UriParser;
+
+  constructor() {
+    this.parser = new UriParser();
+  }
+
   public handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
     log(`Received URI: ${uri.toString()}`);
-    const config = vscode.workspace.getConfiguration(CONFIG_PREFIX);
+    const configProvider = new VSCodeConfigProvider(CONFIG_PREFIX);
     const queryParams = new URLSearchParams(uri.query);
 
-    const commandArgs: FindInFilesArgs = {
-      triggerSearch: true
-    };
-
-    for (const def of PARAM_DEFINITIONS) {
-      const value = this.getParam(queryParams, def.name, config, def.configKey, def.defaultValue, def.type);
-      (commandArgs as any)[def.name] = value;
-    }
+    const commandArgs = this.parser.parse(queryParams, configProvider);
 
     log("Executing findInFiles command with parameters:", commandArgs);
     this.executeFindInFiles(commandArgs);
   }
 
-  private getParam<T>(
-    queryParams: URLSearchParams,
-    uriParamName: string,
-    config: vscode.WorkspaceConfiguration,
-    configKeySuffix: string,
-    fallbackValue: T,
-    type: "string" | "boolean" | "number"
-  ): T {
-    if (queryParams.has(uriParamName)) {
-      const value = queryParams.get(uriParamName);
-      if (value !== null) {
-        if (type === "boolean") {
-          return (value.toLowerCase() === "true") as unknown as T;
-        }
-        if (type === "number") {
-            const num = Number(value);
-            return (isNaN(num) ? fallbackValue : num) as unknown as T;
-        }
-        return value as unknown as T;
-      }
-    }
-
-    return config.get<T>(configKeySuffix, fallbackValue);
-  }
-
   private executeFindInFiles(args: FindInFilesArgs) {
     vscode.commands.executeCommand("workbench.action.findInFiles", args).then(
       () => log("findInFiles command executed successfully."),
-      (err) => {
-        vscode.window.showErrorMessage(`Failed to execute findInFiles: ${err}`);
-        log(`Failed to execute findInFiles:`, err);
+      (err: unknown) => {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Failed to execute findInFiles: ${errorMessage}`);
+        log(`Failed to execute findInFiles:`, errorMessage);
       }
     );
   }
@@ -119,7 +82,5 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   log('Extension "uri-grep" is deactivated.');
-  // context.subscriptionsによりoutputChannelは自動的に破棄されるため、ここで明示的なdisposeは不要だが、
-  // 参照をクリアしておくのは良い習慣
   outputChannel = undefined;
 }

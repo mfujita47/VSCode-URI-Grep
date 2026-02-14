@@ -1,59 +1,67 @@
-# URI Grep README
+# 🔍 URI Grep: Trigger Global Search via URI (v1.3.0)
 
-This extension allows you to trigger VS Code's "Search in Files" feature (Ctrl+Shift+F) using a custom URI scheme. This is useful for launching searches from external scripts or tools like batch files.
+**URI Grep** is a lightweight VS Code extension that allows you to trigger the built-in "Search in Files" feature (Global Search) using a custom URI scheme. It's designed for seamless integration with external scripts, batch files, or automation tools.
 
-## Usage
+## ✨ Key Features
 
-**URI Format:**
+- **🚀 External Integration**: Launch complex searches directly from your terminal, scripts, or other applications.
+- **⚙️ Deep Customization**: Control every aspect of the search, including regex, case sensitivity, file inclusion/exclusion, and context lines.
+- **🔄 Smart Fallbacks**: Intelligent priority system: **URI Parameter > VS Code Setting > Extension Default**.
+- **📋 Context-Aware**: Support for showing surrounding lines (context) in search results.
 
+## 🚀 Usage
+
+### URI Format
+```uri
+vscode://mfujita47.uri-grep/search?query=<search_term>&[parameters]
 ```
-vscode://mfujita47.uri-grep/search?query=<search_term>&filesToInclude=<include_glob>&filesToExclude=<exclude_glob>&isRegex=<true|false>&isCaseSensitive=<true|false>&matchWholeWord=<true|false>&useExcludeSettingsAndIgnoreFiles=<true|false>
-```
 
-**Parameters:**
+### Supported Parameters
 
-All parameters except `query` are optional. If an optional parameter is omitted from the URI, the extension will first check your VS Code settings (`settings.json`) for a corresponding default value (see Configuration below). If no setting is found, a hardcoded default value within the extension will be used.
+| Parameter | Description | Default (Setting) |
+| :--- | :--- | :--- |
+| `query` | **(Required)** The string or regex to search for. | - |
+| `filesToInclude` | Glob pattern for files to search in (e.g., `src/**/*.ts`). | `urigrep.defaultFilesToInclude` |
+| `filesToExclude` | Glob pattern for files to skip (e.g., `**/node_modules/**`). | `urigrep.defaultFilesToExclude` |
+| `isRegex` | Treat query as a regular expression (`true`/`false`). | `urigrep.defaultIsRegex` |
+| `isCaseSensitive` | Perform case-sensitive search (`true`/`false`). | `urigrep.defaultIsCaseSensitive` |
+| `matchWholeWord` | Match whole words only (`true`/`false`). | `urigrep.defaultMatchWholeWord` |
+| `contextLines` | Number of surrounding lines to show. | `urigrep.defaultContextLines` |
+| `useExcludeSettingsAndIgnoreFiles` | Respect `.gitignore` and exclude settings. | `urigrep.defaultUseExcludeSettingsAndIgnoreFiles` |
+| `triggerSearch` | Execute search immediately (`true`) or just fill panel (`false`). | `urigrep.defaultTriggerSearch` |
 
-The priority for parameter values is: **URI Parameter > VS Code Setting > Extension Default**.
+### Examples
 
-- `query`: The string or regular expression to search for. (Required)
-- `filesToInclude`: Glob pattern for files to include in the search (e.g., `src/**/*.ts`).
-- `filesToExclude`: Glob pattern for files to exclude from the search (e.g., `**/node_modules/**,**/*.log`).
-- `isRegex`: Treat `query` as a regular expression (`true` or `false`). (Default: `false`)
-- `isCaseSensitive`: Perform a case-sensitive search (`true` or `false`). (Default: `false`)
-- `matchWholeWord`: Match whole words only (`true` or `false`). (Default: `false`)
-
-**Example URI:**
-
-Search for the regular expression `console\.log` within TypeScript files in the `src` directory:
-
+**Search for `console.log` in TypeScript files:**
 ```uri
 vscode://mfujita47.uri-grep/search?query=console\.log&filesToInclude=src/**/*.ts&isRegex=true
 ```
 
-**Launching from External Tools:**
-
-You can use the example URI above to launch the search from your preferred tool:
+**Launch from Command Line:**
 
 - **Command Prompt (cmd.exe):**
-
   ```batch
-  start "" "vscode://mfujita47.uri-grep/search?query=console\.log&filesToInclude=src/**/*.ts&isRegex=true"
+  start "" "vscode://mfujita47.uri-grep/search?query=TODO&isCaseSensitive=true"
   ```
-
 - **PowerShell:**
   ```powershell
-  Start-Process "vscode://mfujita47.uri-grep/search?query=console\.log&filesToInclude=src/**/*.ts&isRegex=true"
+  Start-Process "vscode://mfujita47.uri-grep/search?query=FIXME&contextLines=3"
   ```
 
-## Configuration
+## ⚙️ Configuration
 
-You can configure the default behavior of this extension by modifying your VS Code settings (`settings.json`). These settings are used when the corresponding parameters are omitted from the URI:
+Customize default values via VS Code Settings or `settings.json`:
 
-- `urigrep.defaultFilesToInclude`: Default glob pattern for files to include.
-- `urigrep.defaultFilesToExclude`: Default glob pattern for files to exclude.
-- `urigrep.defaultIsRegex`: Default value for `isRegex`.
-- `urigrep.defaultIsCaseSensitive`: Default value for `isCaseSensitive`.
-- `urigrep.defaultMatchWholeWord`: Default value for `matchWholeWord`.
+- `urigrep.defaultQuery`: Default search term.
+- `urigrep.defaultFilesToInclude`: Default inclusion pattern.
+- `urigrep.defaultFilesToExclude`: Default exclusion pattern.
+- `urigrep.defaultIsRegex`: Default regex setting.
+- `urigrep.defaultIsCaseSensitive`: Default case sensitivity.
+- `urigrep.defaultMatchWholeWord`: Default whole word setting.
+- `urigrep.defaultContextLines`: Default number of context lines (Default: `1`).
+- `urigrep.defaultUseExcludeSettingsAndIgnoreFiles`: Default for ignoring files (Default: `true`).
+- `urigrep.defaultTriggerSearch`: Default for executing search immediately (Default: `true`).
 
-**Note:** This URI scheme works best when the extension is properly installed (not just running in development mode).
+## 📄 License
+
+[MIT License](LICENSE)
