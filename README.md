@@ -1,4 +1,4 @@
-# 🔍 URI Grep: Trigger Global Search via URI (v1.3.0)
+# 🔍 URI Grep: Trigger Global Search via URI (v1.4.0)
 
 **URI Grep** is a lightweight VS Code extension that allows you to trigger the built-in "Search in Files" feature (Global Search) using a custom URI scheme. It's designed for seamless integration with external scripts, batch files, or automation tools.
 
