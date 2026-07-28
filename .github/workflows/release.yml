@@ -101,9 +101,9 @@ jobs:
       - name: Publish to the VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx --no-install vsce publish --packagePath "$VSIX"
+        run: npx --no-install vsce publish --packagePath "$VSIX" --skip-duplicate
 
       - name: Publish to Open VSX
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx --no-install ovsx publish "$VSIX"
+        run: npx --no-install ovsx publish "$VSIX" --skip-duplicate
