@@ -1,8 +1,11 @@
 import * as vscode from "vscode";
-import { UriParser, FindInFilesArgs, IConfigProvider } from "./uriParser";
+import { UriParser, SearchRequest, IConfigProvider, parseQueryString } from "./uriParser";
 
 // ログ出力用のチャンネル（activateで初期化）
 let outputChannel: vscode.OutputChannel | undefined;
+
+// 開発ホストで起動しているかどうか（activateで初期化）
+let isDevelopment = false;
 
 // ログ出力用ユーティリティ
 function log(message: string, ...optionalParams: unknown[]) {
@@ -15,8 +18,8 @@ function log(message: string, ...optionalParams: unknown[]) {
     outputChannel.appendLine(`[${time}] ${message} ${formattedParams}`);
   }
 
-  // 開発環境のみコンソールにも出力
-  if (process.env.NODE_ENV !== "production") {
+  // 開発ホストのみコンソールにも出力（拡張ホストでは NODE_ENV が設定されないため ExtensionMode で判定する）
+  if (isDevelopment) {
     console.log(`[uri-grep] ${message}`, ...optionalParams);
   }
 }
@@ -29,14 +32,22 @@ class VSCodeConfigProvider implements IConfigProvider {
         this.config = vscode.workspace.getConfiguration(section);
     }
 
-    get<T>(key: string, defaultValue: T): T {
-        // VS Code の get は undefined を返す可能性があるため、defaultValue を確実に返すようにする
-        const value = this.config.get<T>(key);
-        return value !== undefined ? value : defaultValue;
+    get(key: string): string | boolean | number | undefined {
+        // ユーザーが明示的に設定した値だけを返す。
+        // get() では package.json の既定値が返るため、「未設定」と区別できない。
+        const inspected = this.config.inspect<string | boolean | number>(key);
+        return inspected?.workspaceFolderValue ?? inspected?.workspaceValue ?? inspected?.globalValue;
     }
 }
 
 const CONFIG_PREFIX = "urigrep";
+const SEARCH_PATH = "/search";
+
+/** README で案内しているパスは /search のみ。パスなし（末尾スラッシュのみ）は後方互換のため許容する。 */
+function isSearchPath(path: string): boolean {
+  const normalized = path.replace(/\/+$/, "");
+  return normalized === "" || normalized === SEARCH_PATH;
+}
 
 class UriHandler implements vscode.UriHandler {
   private parser: UriParser;
@@ -47,28 +58,43 @@ class UriHandler implements vscode.UriHandler {
 
   public handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
     log(`Received URI: ${uri.toString()}`);
+
+    if (!isSearchPath(uri.path)) {
+      const message = `Unsupported URI path '${uri.path}'. Expected '${SEARCH_PATH}'.`;
+      vscode.window.showErrorMessage(`URI Grep: ${message}`);
+      log(message);
+      return;
+    }
+
     const configProvider = new VSCodeConfigProvider(CONFIG_PREFIX);
-    const queryParams = new URLSearchParams(uri.query);
+    // uri.query は VS Code の Uri.parse によって percent-decode 済みで渡ってくる。
+    // URLSearchParams に直接渡すと "+" が空白に化けるため、自前のパーサを使う。
+    const queryParams = parseQueryString(uri.query);
 
-    const commandArgs = this.parser.parse(queryParams, configProvider);
+    const request = this.parser.parse(queryParams, configProvider);
+    for (const warning of request.warnings) {
+      log(`Warning: ${warning}`);
+    }
 
-    log("Executing findInFiles command with parameters:", commandArgs);
-    this.executeFindInFiles(commandArgs);
+    log(`Executing ${request.command} with parameters:`, request.args);
+    this.executeSearch(request);
   }
 
-  private executeFindInFiles(args: FindInFilesArgs) {
-    vscode.commands.executeCommand("workbench.action.findInFiles", args).then(
-      () => log("findInFiles command executed successfully."),
+  private executeSearch(request: SearchRequest) {
+    vscode.commands.executeCommand(request.command, request.args).then(
+      () => log(`${request.command} executed successfully.`),
       (err: unknown) => {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        vscode.window.showErrorMessage(`Failed to execute findInFiles: ${errorMessage}`);
-        log(`Failed to execute findInFiles:`, errorMessage);
+        vscode.window.showErrorMessage(`Failed to execute ${request.command}: ${errorMessage}`);
+        log(`Failed to execute ${request.command}:`, errorMessage);
       }
     );
   }
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  isDevelopment = context.extensionMode === vscode.ExtensionMode.Development;
+
   // OutputChannelを作成し、破棄リストに登録
   outputChannel = vscode.window.createOutputChannel("URI Grep");
   context.subscriptions.push(outputChannel);

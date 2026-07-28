@@ -42,18 +42,15 @@ logs/
 .npmrc
 .yarnrc
 yarn.lock.error
-.b*
 *.code-workspace
-
-# Temporary files
-.vscode-test.mjs
-tsconfig.json.mjs
 
 # Design files
 *.drawio
 
 # Backup files
-*.b*
+*.bak
+*.backup
+*.orig
 
 # Exclude sample files
 READMEsample.md
