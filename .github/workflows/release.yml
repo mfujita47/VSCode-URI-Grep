@@ -1,0 +1,109 @@
+name: Release
+
+# Push a tag that matches the version in package.json, and this workflow does the rest:
+#
+#   npm version 1.5.0 && git push --follow-tags
+#
+# It runs the tests, builds the .vsix, cuts a GitHub Release whose body is the matching
+# CHANGELOG.md section, and publishes to the VS Code Marketplace and Open VSX.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re-)release, e.g. v1.5.0"
+        required: true
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      URIGREP_TEST_TARGET: vscode
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check that the tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag $TAG does not match package.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "VSIX=uri-grep-$version.vsix" >> "$GITHUB_ENV"
+
+      - name: Lint and compile
+        run: npm run pretest
+
+      - name: Test
+        run: xvfb-run -a npm test
+
+      - name: Build the .vsix
+        run: npx --no-install vsce package --out "$VSIX"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4.1.1
+        with:
+          subject-path: ${{ env.VSIX }}
+
+      - name: Extract the release notes from CHANGELOG.md
+        run: |
+          awk -v head="## [$VERSION]" '
+            index($0, head) == 1 { found = 1; next }
+            found && index($0, "## [") == 1 { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+          cat >> release-notes.md <<'EOF'
+
+          ---
+
+          Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mfujita47.uri-grep)
+          or [Open VSX](https://open-vsx.org/extension/mfujita47/uri-grep), or grab the `.vsix` below for editors
+          that ship neither.
+          EOF
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$VSIX" --clobber
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" "$VSIX" --title "$TAG" --notes-file release-notes.md
+          fi
+
+      - name: Publish to the VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx --no-install vsce publish --packagePath "$VSIX"
+
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx --no-install ovsx publish "$VSIX"
