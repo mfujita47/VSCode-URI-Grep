@@ -5,7 +5,9 @@ name: Release
 #   npm version 1.5.0 && git push --follow-tags
 #
 # It runs the tests, builds the .vsix, cuts a GitHub Release whose body is the matching
-# CHANGELOG.md section, and publishes to the VS Code Marketplace and Open VSX.
+# CHANGELOG.md section, and then publishes to the VS Code Marketplace and Open VSX --
+# each of those two only when its secret (VSCE_PAT, OVSX_PAT) is configured, so the
+# release still completes when a marketplace has to be updated by hand.
 on:
   push:
     tags:
@@ -31,6 +33,10 @@ jobs:
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
       URIGREP_TEST_TARGET: vscode
+      # Lifted to the job so the publish steps below can skip themselves when a
+      # marketplace has no credentials configured.
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -98,12 +104,25 @@ jobs:
             gh release create "$TAG" "$VSIX" --title "$TAG" --notes-file release-notes.md
           fi
 
+      # Publishing to the VS Code Marketplace needs a credential that costs an
+      # Azure subscription to obtain, so the release stays useful without one:
+      # the GitHub Release above always happens, and the .vsix attached to it can
+      # be uploaded by hand at
+      # https://marketplace.visualstudio.com/manage/publishers/mfujita47.
       - name: Publish to the VS Code Marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        if: env.VSCE_PAT != ''
         run: npx --no-install vsce publish --packagePath "$VSIX" --skip-duplicate
 
+      - name: Note that the VS Code Marketplace was skipped
+        if: env.VSCE_PAT == ''
+        run: |
+          echo "::warning::VSCE_PAT is not set, so $VSIX was not published to the VS Code Marketplace. Upload it by hand at https://marketplace.visualstudio.com/manage/publishers/mfujita47"
+
       - name: Publish to Open VSX
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        if: env.OVSX_PAT != ''
         run: npx --no-install ovsx publish "$VSIX" --skip-duplicate
+
+      - name: Note that Open VSX was skipped
+        if: env.OVSX_PAT == ''
+        run: |
+          echo "::warning::OVSX_PAT is not set, so $VSIX was not published to Open VSX."
