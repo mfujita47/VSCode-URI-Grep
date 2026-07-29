@@ -13,6 +13,11 @@ updates:
       # once typescript-eslint supports the newer major.
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
+      # @types/vscode is pinned to engines.vscode on purpose: vsce refuses to
+      # package when it is the higher of the two, and letting it float would
+      # compile against APIs that the oldest supported editor does not have.
+      # Raise engines.vscode first, then this, together and by hand.
+      - dependency-name: "@types/vscode"
 
   - package-ecosystem: github-actions
     directory: "/"
